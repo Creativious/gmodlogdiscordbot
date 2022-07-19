@@ -1,2 +1,3 @@
-creativiousUtilities==2.0.0.dev4
+creativiousUtilities==2.0.0.dev5
 py-cord=2.0.0
+colorlog
