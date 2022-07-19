@@ -6,6 +6,10 @@ from discord.ext import commands
 import discord
 
 
+"""
+Documentation: https://docs.pycord.dev/en/master/
+"""
+
 if not os.path.isdir("logs/"):
     os.makedirs("logs/")
 
@@ -16,6 +20,13 @@ if not os.path.exists("sensitive/"): # If the path for the sensitive files doesn
 if not os.path.exists("sensitive/token.txt"): # Ensuring the file for tokens exists, setup so github can't see it.
     with open("sensitive/token.txt", "w+") as f:
         f.write("TOKENGOESHERE")
+
+if not os.path.exists("cogs/"):
+    os.makedirs("cogs/")
+
+token = ""
+with open("sensitive/token.txt", "r") as f: # Loading bot token
+    token = f.read();
 
 
 
@@ -44,14 +55,23 @@ async def on_ready():
     client.remove_command("help")
     await client.change_presence(activity=activity, status=discord.Status.online)
 
-@client.slash_command()
-async def help(ctx : ApplicationContext):
-    """Is your general help command!"""
-    # @TODO: Create the help command
-    await ctx.respond("Testing")
-    print([c.name for c in list(client.commands)])
-    pass
-
 @client.command(name="test")
 async def test(ctx : commands.Context):
+    """Test Command"""
+    print("Test")
     await ctx.reply("Response")
+
+@client.slash_command()
+async def help(ctx : ApplicationContext):
+    """Provides all the possible commands that can be given by the bot"""
+    helpCommandObject = discUtils.HelpCommand(client)
+    helpEmbed = helpCommandObject.getHelp(0)
+    # @TODO: Create the help command
+    await ctx.respond(embed=helpEmbed)
+
+
+
+if token != "TOKENGOESHERE":
+    client.run(token)
+else:
+    client.logger.error("Please provide a discord bot token in the sensitive/token.txt file")
