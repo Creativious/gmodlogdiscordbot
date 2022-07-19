@@ -5,15 +5,16 @@ from discord.commands.context import ApplicationContext
 from discord.ext import commands
 import discord
 
-if not os.path.exists("/logs"):
-    os.makedirs("/logs")
 
-if not os.path.exists("/sensitive"): # If the path for the sensitive files doesn't exist then create it
-    os.makedirs("/sensitive")
+if not os.path.isdir("logs/"):
+    os.makedirs("logs/")
+
+if not os.path.exists("sensitive/"): # If the path for the sensitive files doesn't exist then create it
+    os.makedirs("sensitive/")
 
 
-if not os.path.exists("/sensitive/token.txt"): # Ensuring the file for tokens exists, setup so github can't see it.
-    with open("/sensitive/token.txt", "w+") as f:
+if not os.path.exists("sensitive/token.txt"): # Ensuring the file for tokens exists, setup so github can't see it.
+    with open("sensitive/token.txt", "w+") as f:
         f.write("TOKENGOESHERE")
 
 
