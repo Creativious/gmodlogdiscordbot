@@ -1,2 +1,3 @@
 /sensitive/*
 /logs/*
+/config/config.yaml

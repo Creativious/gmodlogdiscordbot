@@ -1,6 +1,7 @@
 import os
 from creativiousutilities import discord as discUtils
 from creativiousutilities.logging import Logger
+from creativiousutilities.config import YAMLConfig
 from discord.commands.context import ApplicationContext
 from discord.ext import commands
 import discord
@@ -37,6 +38,7 @@ class CoreBot(commands.Bot):
         super().__init__(command_prefix, **options)
         self.logger = Logger(name="Bot", debug=True).getLogger()
         self.logger.info("Startup!")
+        self.config = YAMLConfig("config/default_config.yaml", "config/config.yaml").load()
 
     def shutdown(self):
         self.logger.info("Bot has shutdown!")
