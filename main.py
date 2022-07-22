@@ -62,12 +62,12 @@ async def on_ready():
 #     print("Test")
 #     await ctx.reply("Response")
 
-# @client.slash_command()
-# async def help(ctx : ApplicationContext):
-#     """Provides all the possible commands that can be given by the bot"""
-#     helpCommandObject = discUtils.HelpCommand(client)
-#     helpEmbed = helpCommandObject.getHelp(0)
-#     await ctx.respond(embed=helpEmbed)
+@client.slash_command()
+async def help(ctx : ApplicationContext):
+    """Provides all the possible commands that can be given by the bot"""
+    helpCommandObject = discUtils.HelpCommand(client)
+    helpEmbed = helpCommandObject.getHelp(0)
+    await ctx.respond(embed=helpEmbed)
 
 
 
