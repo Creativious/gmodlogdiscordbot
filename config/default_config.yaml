@@ -1,0 +1,10 @@
+bot:
+  token: TOKENHERE # Bot token
+  logging:
+    filename: logs/log.log # location and file name of the logs from the discord bot.
+    debug: False # Whether you want debugging on (True/False).
+mysql:
+  user: user
+  password: password
+  host: host
+  database: database

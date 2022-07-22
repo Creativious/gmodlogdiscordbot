@@ -1,0 +1,18 @@
+{"Type": "Combat",
+"Time": 721221013,
+"Title": "Player Killed",
+"Color": "#FFFFFFFF",
+"Message": "$Player1 has killed $Player2 initiated by $Player2",
+"Player1": {
+  "steamid": 23523523,
+  "argument": "Username"
+},
+"Player2": {
+  "steamid": 23523523,
+  "argument": "Username"
+},
+"Arguments":
+{
+  "Player1": "Username",
+  "Player2": "Username"
+}}

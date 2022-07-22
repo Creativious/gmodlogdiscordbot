@@ -5,6 +5,7 @@ from discord.commands.context import ApplicationContext
 from discord.ext import commands
 import discord
 
+# @TODO: Setup new config system
 
 """
 Documentation: https://docs.pycord.dev/en/master/
@@ -55,19 +56,19 @@ async def on_ready():
     client.remove_command("help")
     await client.change_presence(activity=activity, status=discord.Status.online)
 
-@client.command(name="test")
-async def test(ctx : commands.Context):
-    """Test Command"""
-    print("Test")
-    await ctx.reply("Response")
+# @client.command(name="test")
+# async def test(ctx : commands.Context):
+#     """Test Command"""
+#     print("Test")
+#     await ctx.reply("Response")
 
-@client.slash_command()
-async def help(ctx : ApplicationContext):
-    """Provides all the possible commands that can be given by the bot"""
-    helpCommandObject = discUtils.HelpCommand(client)
-    helpEmbed = helpCommandObject.getHelp(0)
-    # @TODO: Create the help command
-    await ctx.respond(embed=helpEmbed)
+# @client.slash_command()
+# async def help(ctx : ApplicationContext):
+#     """Provides all the possible commands that can be given by the bot"""
+#     helpCommandObject = discUtils.HelpCommand(client)
+#     helpEmbed = helpCommandObject.getHelp(0)
+#     await ctx.respond(embed=helpEmbed)
+
 
 
 
