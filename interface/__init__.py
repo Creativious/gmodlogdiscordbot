@@ -141,15 +141,16 @@ class LoggingInterface:
                 options.append(category)
         # self.createSelectMenu("loggingModuleCategoriesSelectMenu", row=2, options=options, callback=self.callback_logging_module_categories_select_menu, placeholder="Module Category")
 
-        await interaction.response.edit_message(view=self.SortingModuleCategoryViewFactory(
-            [SelectOption(label=option, description="Module Category") for option in options],)(self))
+        await interaction.response.edit_message(view=self.SortingModuleViewFactory(
+            [SelectOption(label=option, description="Logging Module Category") for option in options],)(self))
         # self.createSelectMenu("sortLoggingModulesSelectMenu", row=3)
 
     async def callback_logging_module_categories_select_menu(self, interaction: discord.Interaction):
 
         await interaction.response.defer()
 
-    def SortingModuleCategoryViewFactory(self, options_1):
+    def SortingModuleViewFactory(self, options_1):
+        # @TODO: Change this so that it shows the modules instead of the Categories, "module [category]" sort them by id number of category then by id number of module
         class SortingView(View):
             def __init__(self, parent:LoggingInterface, *items: Item):
                 super().__init__(*items)
@@ -164,14 +165,12 @@ class LoggingInterface:
                 await self.parent.callback_logs_button(interaction)
 
 
-            @discord.ui.select(row=2, placeholder="Logging Module Category", options=options_1)
+            @discord.ui.select(row=2, placeholder="Any Logging Module Category", options=options_1)
             async def select_logging_module_category_callback(self, select: Select, interaction: Interaction):
 
                 await interaction.response.defer()
 
         return SortingView
-
-    # @TODO: Create a SortingModulesViewFactory
 
 
     class __Pages:
