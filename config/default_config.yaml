@@ -8,3 +8,17 @@ mysql:
   password: password
   host: host
   database: database
+  tables:
+    gas_logging_classes: table_name
+    gas_logging_deepstorage: table_name
+    gas_logging_deepstorage_logdata: table_name
+    gas_logging_module_categories: table_name
+    gas_logging_modules: table_name
+    gas_logging_pvp_events: table_name
+    gas_offline_player_data: table_name
+    darkrp_player: table_name
+    darkrp_levels: table_name
+    player_information: table_name
+cache:
+  delay: 21600 # 6 Hours in seconds, the delay until the cache is destroyed
+  cache folder: cache/ # Where the cache is stored

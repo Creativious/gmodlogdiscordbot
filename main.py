@@ -3,10 +3,13 @@ from creativiousutilities import discord as discUtils
 from creativiousutilities.logging import Logger
 from creativiousutilities.config import YAMLConfig
 from discord.commands.context import ApplicationContext
+from discord.ui import Button, View
 from discord.ext import commands
+from interface import LoggingInterface
 import discord
 
 # @TODO: Setup new config system
+import ui
 
 """
 Documentation: https://docs.pycord.dev/en/master/
@@ -15,30 +18,23 @@ Documentation: https://docs.pycord.dev/en/master/
 if not os.path.isdir("logs/"):
     os.makedirs("logs/")
 
-if not os.path.exists("sensitive/"): # If the path for the sensitive files doesn't exist then create it
-    os.makedirs("sensitive/")
-
-
-if not os.path.exists("sensitive/token.txt"): # Ensuring the file for tokens exists, setup so github can't see it.
-    with open("sensitive/token.txt", "w+") as f:
-        f.write("TOKENGOESHERE")
-
 if not os.path.exists("cogs/"):
     os.makedirs("cogs/")
 
-token = ""
-with open("sensitive/token.txt", "r") as f: # Loading bot token
-    token = f.read();
+if not os.path.exists("cache/"):
+    os.makedirs("cache/")
 
-
+if not os.path.exists("storage/"):
+    os.makedirs("storage/")
 
 
 class CoreBot(commands.Bot):
     def __init__(self, command_prefix, **options):
         super().__init__(command_prefix, **options)
-        self.logger = Logger(name="Bot", debug=True).getLogger()
-        self.logger.info("Startup!")
         self.config = YAMLConfig("config/default_config.yaml", "config/config.yaml").load()
+        self.logger = Logger(name="Bot", debug=bool(self.config["bot"]["logging"]["debug"]), logfile=self.config["bot"]["logging"]["filename"]).getLogger()
+        self.logger.info("Startup!")
+
 
     def shutdown(self):
         self.logger.info("Bot has shutdown!")
@@ -71,10 +67,18 @@ async def help(ctx : ApplicationContext):
     helpEmbed = helpCommandObject.getHelp(0)
     await ctx.respond(embed=helpEmbed)
 
+@client.slash_command()
+async def create_log_interface(ctx : ApplicationContext):
+    client.logger.debug("Creating Log Interface")
+    await ctx.defer()
+    await ctx.delete()
+    await ctx.send(view=LoggingInterface(config=client.config).create())
 
 
 
-if token != "TOKENGOESHERE":
-    client.run(token)
+
+
+if client.config["bot"]["token"] != "TOKENHERE":
+    client.run(client.config["bot"]["token"])
 else:
     client.logger.error("Please provide a discord bot token in the sensitive/token.txt file")

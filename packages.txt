@@ -1,4 +1,5 @@
-creativiousUtilities==2.1.0
+creativiousUtilities==2.1.1
 py-cord==2.0.0
 colorlog
 pyyaml==6.0
+mysql-connector-python==8.0.29
