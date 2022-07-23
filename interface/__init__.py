@@ -1,7 +1,7 @@
 import discord
 
 from creativiousutilities.discord.ui import HomeButton, PageRightButton, PageLeftButton
-from discord.ui import Button, View, Select, Modal
+from discord.ui import Button, View, Select, Modal, Item
 from discord import Embed, ButtonStyle
 from discord import Interaction, SelectOption
 from creativiousutilities.sql import MySQL
@@ -10,9 +10,6 @@ import json
 from caching import Cache, CacheType, CacheSystem
 
 import mysql.connector
-
-
-
 
 
 class LoggingInterface:
@@ -69,18 +66,20 @@ class LoggingInterface:
             self.caching_system.updateCache(cache_name, cache)
             return cache.get_data()
 
+        # @TODO: Enable grabbing all modules
+
 
 
     def create(self):
-        self.createButton("homeButton", row=1, button=HomeButton(), callback=self.__callback_home_button)
-        self.createButton("logsButton", Button(style=ButtonStyle.primary, label="Logs"), row=1, callback=self.__callback_logs_button)
+        self.createButton("homeButton", row=1, button=HomeButton(), callback=self.callback_home_button)
+        self.createButton("logsButton", Button(style=ButtonStyle.primary, label="Logs"), row=1, callback=self.callback_logs_button)
         return self.view
 
     def deleteButton(self, buttonName: str):
         self.view.remove_item(self.buttons[buttonName])
         self.buttons.pop(buttonName)
 
-    def __clearToDefault(self):
+    def clearToDefault(self):
         default_buttons = [
             "homeButton",
             "logsButton"
@@ -103,10 +102,12 @@ class LoggingInterface:
         self.view.add_item(button)
         return button
 
-    def createSelectMenu(self, selectMenuID: str, options: list, callback = None, row = 2, min_values=1, max_values=1):
+    def createSelectMenu(self, selectMenuID: str, options: list, callback = None, row = 2, min_values=1, max_values=1, placeholder: str = None, description: str = "Description"):
 
-        selectMenu = Select(min_values=min_values, max_values=max_values, row=row, custom_id=selectMenuID, placeholder="Select...", options=[SelectOption(label=option) for option in options])
+        selectMenu = Select(min_values=min_values, max_values=max_values, row=row, custom_id=selectMenuID, placeholder="Select...", options=[SelectOption(label=option, description=description) for option in options])
         selectMenu.callback = callback
+        if placeholder is not None:
+            selectMenu.placeholder = placeholder
         self.selectMenus[selectMenuID] = selectMenu
         self.view.add_item(self.selectMenus[selectMenuID])
         return self.selectMenus[selectMenuID]
@@ -115,37 +116,65 @@ class LoggingInterface:
         self.view.remove_item(self.selectMenus[selectMenuID])
         self.selectMenus.pop(selectMenuID)
 
-    async def __callback_home_button(self, interaction : discord.Interaction):
-        self.__clearToDefault()
+    async def callback_home_button(self, interaction : discord.Interaction):
+        self.clearToDefault()
         await interaction.response.edit_message(view=self.view)
 
-    async def __callback_logs_button(self, interaction : discord.Interaction):
-        self.__clearToDefault()
-        self.createButton("openSortByMenuButton", Button(style=ButtonStyle.secondary, label="Sort Logs"), row=2, callback=self.__callback_open_sort_by_menu_button)
+    async def callback_logs_button(self, interaction : discord.Interaction):
+        self.clearToDefault()
+        self.createButton("openSortByMenuButton", Button(style=ButtonStyle.secondary, label="Sort Logs"), row=2, callback=self.callback_open_sort_by_menu_button)
         await interaction.response.edit_message(view=self.view)
 
-    async def __callback_fail_confirm_sort_selection_button(self, interaction: discord.Interaction):
-        await interaction.response.edit_message(view=self.view)
+    async def callback_fail_confirm_sort_selection_button(self, interaction: discord.Interaction):
+        await interaction.response.defer()
 
-    async def __callback_open_sort_by_menu_button(self, interaction: discord.Interaction):
-        self.__clearToDefault()
-        self.createButton("confirmSortSelectionButton", Button(style=ButtonStyle.green, label="Confirm Selection"), row=4, callback=self.__callback_fail_confirm_sort_selection_button)
-        self.createButton("cancelButton", Button(style=ButtonStyle.red, label="Cancel"), row=4, callback=self.__callback_logs_button)
+
+
+    async def callback_open_sort_by_menu_button(self, interaction: discord.Interaction):
+        # self.clearToDefault()
+        # self.createButton("confirmSortSelectionButton", Button(style=ButtonStyle.green, label="Confirm Selection"), row=4, callback=self.callback_fail_confirm_sort_selection_button)
+        # self.createButton("cancelButton", Button(style=ButtonStyle.red, label="Cancel"), row=4, callback=self.callback_logs_button)
         logging_module_categories = self.sql_sync.getLoggingModuleCategories()
-        options = []
+        options = ["Any"]
         for category in logging_module_categories:
             if len(category) > 1:
                 options.append(category)
-        self.createSelectMenu("LoggingModuleCategoriesSelectMenu", row=2, options=options)
+        # self.createSelectMenu("loggingModuleCategoriesSelectMenu", row=2, options=options, callback=self.callback_logging_module_categories_select_menu, placeholder="Module Category")
 
-        await interaction.response.edit_message(view=self.view)
+        await interaction.response.edit_message(view=self.SortingModuleCategoryViewFactory(
+            [SelectOption(label=option, description="Module Category") for option in options],)(self))
         # self.createSelectMenu("sortLoggingModulesSelectMenu", row=3)
 
-    async def __callback_logging_module_categories_select_menu(self, select, interaction: discord.Interaction):
-        pass
+    async def callback_logging_module_categories_select_menu(self, interaction: discord.Interaction):
 
+        await interaction.response.defer()
+
+    def SortingModuleCategoryViewFactory(self, options_1):
+        class SortingView(View):
+            def __init__(self, parent:LoggingInterface, *items: Item):
+                super().__init__(*items)
+                self.parent: LoggingInterface = parent
+
+            @discord.ui.button(label="Home", style=ButtonStyle.primary, emoji="🏠", row=1)
+            async def home_callback(self, button: Button, interaction: Interaction):
+                await self.parent.callback_home_button(interaction)
+
+            @discord.ui.button(label="Logs", style=ButtonStyle.primary, row=1)
+            async def logs_callback(self, button: Button, interaction: Interaction):
+                await self.parent.callback_logs_button(interaction)
+
+
+            @discord.ui.select(row=2, placeholder="Logging Module Category", options=options_1)
+            async def select_logging_module_category_callback(self, select: Select, interaction: Interaction):
+
+                await interaction.response.defer()
+
+        return SortingView
+
+    # @TODO: Create a SortingModulesViewFactory
 
 
     class __Pages:
         def __init__(self):
             self.home = "Home"
+
