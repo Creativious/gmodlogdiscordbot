@@ -165,7 +165,7 @@ class LoggingInterface:
                 await self.parent.callback_logs_button(interaction)
 
 
-            @discord.ui.select(row=2, placeholder="Any Logging Module Category", options=options_1)
+            @discord.ui.select(row=2, placeholder="Logging Module", options=options_1)
             async def select_logging_module_category_callback(self, select: Select, interaction: Interaction):
 
                 await interaction.response.defer()
