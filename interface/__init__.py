@@ -14,6 +14,7 @@ import mysql.connector
 
 class LoggingInterface:
     def __init__(self, config):
+        # @TODO: Add Interface persistence
         self.config = config
         self.sql : mysql.connector.MySQLConnection = mysql.connector.connect(
             host=self.config["mysql"]["host"],
