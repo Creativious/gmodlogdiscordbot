@@ -1,4 +1,4 @@
-creativiousUtilities==2.1.1
+creativiousUtilities==2.2.0
 py-cord==2.0.0
 colorlog
 pyyaml==6.0

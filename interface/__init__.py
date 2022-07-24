@@ -16,6 +16,7 @@ class LoggingInterface:
     def __init__(self, config):
         # @TODO: Add Interface persistence
         self.config = config
+        self.caching_system = CacheSystem(int(self.config["cache"]["delay"]), self.config["cache"]["cache folder"])
         self.sql : mysql.connector.MySQLConnection = mysql.connector.connect(
             host=self.config["mysql"]["host"],
             user=self.config["mysql"]["user"],
@@ -24,7 +25,7 @@ class LoggingInterface:
         )
         if self.sql is None:
             raise "SQL IS NONE"
-        self.sql_sync = self.SQLSync(self.sql, self.config)
+        self.sql_sync = self.SQLSync(self.sql, self.config, self.caching_system)
         self.view = View()
         self.buttons = {}
         self.selectMenus = {}
@@ -35,11 +36,10 @@ class LoggingInterface:
         self.sql.close()
 
     class SQLSync:
-        def __init__(self, sql: mysql.connector.MySQLConnection, config: dict):
+        def __init__(self, sql: mysql.connector.MySQLConnection, config: dict, caching_system: CacheSystem):
             self.config = config
             self.sql = sql
-            self.caching_system = CacheSystem(int(self.config["cache"]["delay"]), self.config["cache"]["cache folder"])
-            self.first_times = {"loggingModuleCategories": False}
+            self.caching_system = caching_system
 
         def getLoggingModuleCategories(self):
             cache_name = self.config["mysql"]["tables"]["gas_logging_module_categories"]
@@ -53,20 +53,43 @@ class LoggingInterface:
                 cursor_fetchall = cursor.fetchall()
                 cursor.close()
                 for entry in cursor_fetchall:
-                    cache.new_entry(str(entry[0]), str(entry[1]))
-                    cache.new_entry(str(entry[1]), entry[0])
+                    data = {"id": entry[0], "name": entry[1]}
+                    cache.new_entry(str(entry[0]), data)
                 cache.reset_created_time()
                 return cache
 
-            if self.first_times["loggingModuleCategories"] is False:
+            if not self.caching_system.checkIfFirstTime(cache_name):
                 resetCache()
-                self.first_times["loggingModuleCategories"] = True
+                self.caching_system.firstTimeComplete(cache_name)
             else:
                 if cache.check_if_delay_passed():
                     resetCache()
             self.caching_system.updateCache(cache_name, cache)
             return cache.get_data()
-
+        def getLoggingModules(self):
+            cache_name = self.config["mysql"]["tables"]["gas_logging_modules"]
+            cache_type = CacheType.OneTime
+            cache = self.caching_system.createCache(cache_name, cache_type)
+            def resetCache():
+                cache.wipe_all_entries()
+                cursor = self.sql.cursor()
+                query = f"""SELECT id, category_id, name FROM {self.config["mysql"]["tables"]["gas_logging_modules"]}"""
+                cursor.execute(query)
+                cursor_fetchall = cursor.fetchall()
+                cursor.close()
+                for entry in cursor_fetchall:
+                    data = {"id": entry[0], "name": entry[2], "category_id": entry[1], "category_name": self.getLoggingModuleCategories()[str(entry[1])]['name']}
+                    cache.new_entry(str(entry[0]), data)
+                cache.reset_created_time()
+                return cache
+            if not self.caching_system.checkIfFirstTime(cache_name):
+                resetCache()
+                self.caching_system.firstTimeComplete(cache_name)
+            else:
+                if cache.check_if_delay_passed():
+                    resetCache()
+            self.caching_system.updateCache(cache_name, cache)
+            return cache.get_data()
         # @TODO: Enable grabbing all modules
 
 
@@ -123,39 +146,43 @@ class LoggingInterface:
 
     async def callback_logs_button(self, interaction : discord.Interaction):
         self.clearToDefault()
-        self.createButton("openSortByMenuButton", Button(style=ButtonStyle.secondary, label="Sort Logs"), row=2, callback=self.callback_open_sort_by_menu_button)
+        self.createButton("openbLogsButton", Button(style=ButtonStyle.secondary, label="bLogs"), row=2, callback=self.callback_bLogs_button)
         await interaction.response.edit_message(view=self.view)
 
-    async def callback_fail_confirm_sort_selection_button(self, interaction: discord.Interaction):
-        await interaction.response.defer()
+    def getLoggingModuleCategoriesSelectOptions(self):
+        categories = self.sql_sync.getLoggingModuleCategories()
+        options = []
+        for x in range(1, len(categories) + 1):
+            option = SelectOption(
+                label=str(categories[str(x)]['name'])
+            )
+            options.append(option)
+        return options
+    def getLoggingModulesSelectOptions(self, category: str):
+        modules = self.sql_sync.getLoggingModules()
+        options = []
+        for x in range(1, len(modules) + 1):
+            if modules[str(x)]['category_name'] == category:
+                option = SelectOption(
+                    label=str(modules[str(x)]['name']),
+                    description=category
+                )
+                options.append(option)
+        return options
 
 
 
-    async def callback_open_sort_by_menu_button(self, interaction: discord.Interaction):
-        # self.clearToDefault()
-        # self.createButton("confirmSortSelectionButton", Button(style=ButtonStyle.green, label="Confirm Selection"), row=4, callback=self.callback_fail_confirm_sort_selection_button)
-        # self.createButton("cancelButton", Button(style=ButtonStyle.red, label="Cancel"), row=4, callback=self.callback_logs_button)
-        logging_module_categories = self.sql_sync.getLoggingModuleCategories()
-        options = ["Any"]
-        for category in logging_module_categories:
-            if len(category) > 1:
-                options.append(category)
-        # self.createSelectMenu("loggingModuleCategoriesSelectMenu", row=2, options=options, callback=self.callback_logging_module_categories_select_menu, placeholder="Module Category")
+    async def callback_bLogs_button(self, interaction: discord.Interaction):
+        self.clearToDefault()
+        await interaction.response.edit_message(view=self.SortingModuleCategoryViewFactory(self.getLoggingModuleCategoriesSelectOptions())(self))
 
-        await interaction.response.edit_message(view=self.SortingModuleViewFactory(
-            [SelectOption(label=option, description="Logging Module Category") for option in options],)(self))
-        # self.createSelectMenu("sortLoggingModulesSelectMenu", row=3)
-
-    async def callback_logging_module_categories_select_menu(self, interaction: discord.Interaction):
-
-        await interaction.response.defer()
-
-    def SortingModuleViewFactory(self, options_1):
+    def SortingModuleCategoryViewFactory(self, options):
         # @TODO: Change this so that it shows the modules instead of the Categories, "module [category]" sort them by id number of category then by id number of module
         class SortingView(View):
             def __init__(self, parent:LoggingInterface, *items: Item):
                 super().__init__(*items)
                 self.parent: LoggingInterface = parent
+                self.select_value = None
 
             @discord.ui.button(label="Home", style=ButtonStyle.primary, emoji="🏠", row=1)
             async def home_callback(self, button: Button, interaction: Interaction):
@@ -166,9 +193,61 @@ class LoggingInterface:
                 await self.parent.callback_logs_button(interaction)
 
 
-            @discord.ui.select(row=2, placeholder="Logging Module", options=options_1)
+            @discord.ui.select(row=2, placeholder="Pick a Logging Category", options=options)
             async def select_logging_module_category_callback(self, select: Select, interaction: Interaction):
+                self.select_value = select.values[0]
+                await interaction.response.defer()
 
+            @discord.ui.select(row=3, placeholder="Logging Module", options=options, disabled=True)
+            async def false_callback(self, select: Select, interaction: Interaction):
+                await interaction.response.defer()
+
+            @discord.ui.button(label="Confirm", style=ButtonStyle.green, row=4)
+            async def confirm_callback(self, button: Button, interaction: Interaction):
+                if self.select_value is not None:
+                    await interaction.response.edit_message(view=self.parent.SortingModulesViewFactory(self.parent.getLoggingModulesSelectOptions(self.select_value), self.select_value)(self.parent))
+                else:
+                    await interaction.response.defer()
+
+            @discord.ui.button(label="Cancel", style=ButtonStyle.red, row=4)
+            async def cancel_callback(self, button: Button, interaction: Interaction):
+                await self.parent.callback_logs_button(interaction)
+
+        return SortingView
+
+    def SortingModulesViewFactory(self, options, category):
+        class SortingView(View):
+            def __init__(self, parent: LoggingInterface, *items: Item):
+                super().__init__(*items)
+                self.parent: LoggingInterface = parent
+                self.select_value = None
+
+            @discord.ui.button(label="Confirm", style=ButtonStyle.green, row=4)
+            async def confirm_callback(self, button: Button, interaction: Interaction):
+                if self.select_value is not None:
+                    await interaction.response.send_message(f"You selected {str(self.select_value)}")
+                else:
+                    await interaction.response.defer()
+
+            @discord.ui.button(label="Cancel", style=ButtonStyle.red, row=4)
+            async def cancel_callback(self, button: Button, interaction: Interaction):
+                await self.parent.callback_bLogs_button(interaction)
+
+            @discord.ui.button(label="Home", style=ButtonStyle.primary, emoji="🏠", row=1)
+            async def home_callback(self, button: Button, interaction: Interaction):
+                await self.parent.callback_home_button(interaction)
+
+            @discord.ui.button(label="Logs", style=ButtonStyle.primary, row=1)
+            async def logs_callback(self, button: Button, interaction: Interaction):
+                await self.parent.callback_logs_button(interaction)
+
+            @discord.ui.select(row=2, placeholder=category, options=options, disabled=True)
+            async def select_logging_module_category_callback(self, select: Select, interaction: Interaction):
+                await interaction.response.defer()
+
+            @discord.ui.select(row=3, placeholder="Please pick a logging module", options=options)
+            async def select_logging_module_callback(self, select: Select, interaction: Interaction):
+                self.select_value = select.values[0]
                 await interaction.response.defer()
 
         return SortingView

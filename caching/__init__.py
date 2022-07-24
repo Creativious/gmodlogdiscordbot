@@ -111,6 +111,7 @@ class CacheSystem:
     def __init__(self, delay: int, cacheFolder: str):
         self.delay = delay # Delay until the cache is destroyed
         self.caches = {}
+        self.__cacheFirstTimes = {}
         if not os.path.exists(cacheFolder):
             raise "Folder doesn't exist [Caching]"
         self.cacheFolder = cacheFolder
@@ -127,6 +128,7 @@ class CacheSystem:
             return self.getCache(name)
         else:
             self.caches[str(name)] = Cache(os.path.join(self.cacheFolder, name + ".json"), cacheType=cacheType, delay=self.delay)
+            self.__cacheFirstTimes[str(name)] = False
             return self.caches[str(name)]
     def updateCache(self, name: str, cache: Cache):
         cache.saveCache()
@@ -135,6 +137,10 @@ class CacheSystem:
         return self.caches[str(name)]
     def deleteCache(self, name: str):
         self.caches.pop(str(name))
+    def checkIfFirstTime(self, name: str):
+        return self.__cacheFirstTimes[str(name)]
+    def firstTimeComplete(self, name: str):
+        self.__cacheFirstTimes[str(name)] = True
 
 
     def __del__(self):
