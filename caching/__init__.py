@@ -14,7 +14,8 @@ class Cache:
         self.createdAt = round(time.time())
         self.delay = delay
         self.cache_dict = {
-            "cache_type": str(cacheType)
+            "cache_type": str(cacheType),
+            "special_entries": {}
         }
         if cacheType == CacheType.Additive:
             self.cache_dict["entries"] = {} # Contains the data
@@ -95,6 +96,15 @@ class Cache:
         else:
             raise "Not a valid CacheType"
 
+    def addSpecialEntry(self, name: str, data):
+        self.cache_dict["special_entries"][name] = data
+
+    def deleteSpecialEntry(self, name: str, data):
+        self.cache_dict["special_entries"].pop(name)
+
+    def getSpecialEntry(self, name: str):
+        return self.cache_dict['special_entries'][name]
+
     def edit_entry(self, name: str, data):
         self.new_entry(name, data)
 
@@ -145,4 +155,4 @@ class CacheSystem:
 
     def __del__(self):
         for cache in self.caches:
-            cache.saveCache()
+            self.caches[cache].saveCache()

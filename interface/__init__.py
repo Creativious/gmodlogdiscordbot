@@ -5,6 +5,7 @@ from discord.ui import Button, View, Select, Modal, Item
 from discord import Embed, ButtonStyle
 from discord import Interaction, SelectOption
 from creativiousutilities.sql import MySQL
+from creativiousutilities.discord.messages import MessageHandler
 import time
 import json
 from caching import Cache, CacheType, CacheSystem
@@ -28,9 +29,15 @@ class LoggingInterface:
         self.sql_sync = self.SQLSync(self.sql, self.config, self.caching_system)
         self.view = View()
         self.buttons = {}
+        self.default_embed = discord.Embed(colour=discord.Colour.blurple(), title="Vapor Networks DarkRP Log Interface",
+                                           description="""
+                    Please use the buttons down below to navigate the interface
+                    """)
         self.selectMenus = {}
         self.pages = self.__Pages()
         self.current_page = self.pages.home
+        self.interface_message_handler = MessageHandler("storage/interface_messages.json")
+
 
     def __del__(self):
         self.sql.close()
@@ -90,14 +97,66 @@ class LoggingInterface:
                     resetCache()
             self.caching_system.updateCache(cache_name, cache)
             return cache.get_data()
-        # @TODO: Enable grabbing all modules
 
+        def getLoggingClasses(self):
+            cursor = self.sql.cursor()
+            cache_name = self.config['mysql']['tables']['gas_logging_classes']
+            query = f"""SELECT id, class_type, class_name FROM {cache_name}"""
+            cursor.execute(query)
+            cursor_fetchall = cursor.fetchall()
+            cursor.close()
+            all_the_data = {}
+            with open("gmod/class_types.json", "r") as f:
+                class_types = json.loads(f.read())
+            for entry in cursor_fetchall:
+                data = {"id": str(entry[0]), "class_type": str(class_types[str(entry[1])]), "class_name": str(entry[2])}
+                all_the_data[str(entry[0])] = data
+            return all_the_data
+
+        def getLogs(self, ):
+            cache_name = self.config["mysql"]["tables"]["gas_logging_deepstorage_logdata"]
+            cache_type = CacheType.Additive
+            cache = self.caching_system.createCache(cache_name, cache_type)
+            new_logs = []
+            try:
+                log_count = cache.getSpecialEntry("log_count")
+            except KeyError:
+                log_count = 0
+                cache.addSpecialEntry("log_count", log_count)
+            try:
+                highest_log_id = cache.getSpecialEntry("highest_log_id")
+            except KeyError:
+                highest_log_id = 0
+                cache.addSpecialEntry("highest_log_id", highest_log_id)
+            query_gas_logging_deepstorage_logdata = f"""SELECT log_id, data_index, string, highlight, currency, console, bot, account_id, usergroup, team, role, health, armor, weapon, vehicle, dmg_amount, dmg_type, class_type, class_id FROM {str(self.config['mysql']['tables']['gas_logging_deepstorage_logdata'])} WHERE log_id > {str(highest_log_id)}"""
+
+            query_gas_logging_deepstorage = f"""SELECT id, module_id, log, log_phrase, timestamp, session FROM {str(self.config['mysql']['tables']['gas_logging_deepstorage'])} WHERE id > {str(highest_log_id)}"""
+
+            query_gas_logging_pvp_events = f""""""
+
+
+
+        def __autoHandleAdditiveCache(self):
+            pass
 
 
     def create(self):
+        self.view.clear_items()
         self.createButton("homeButton", row=1, button=HomeButton(), callback=self.callback_home_button)
         self.createButton("logsButton", Button(style=ButtonStyle.primary, label="Logs"), row=1, callback=self.callback_logs_button)
         return self.view
+
+    def create_from_message(self, message : discord.Message):
+        self.view = self.view.from_message(message)
+        try:
+            messages = self.interface_message_handler.getMessages()["interfaces"][str(message.id)] = str(message.channel.id)
+        except KeyError:
+            messages = self.interface_message_handler.getMessages()
+            messages["interfaces"] = {}
+            messages["interfaces"][str(message.id)] = str(message.channel.id)
+        finally:
+            self.interface_message_handler.saveMessages(messages)
+        return self.create()
 
     def deleteButton(self, buttonName: str):
         self.view.remove_item(self.buttons[buttonName])
@@ -148,6 +207,10 @@ class LoggingInterface:
         self.clearToDefault()
         self.createButton("openbLogsButton", Button(style=ButtonStyle.secondary, label="bLogs"), row=2, callback=self.callback_bLogs_button)
         await interaction.response.edit_message(view=self.view)
+
+    async def callback_log_module_picked(self, module: str, interaction : Interaction):
+        self.view = self.create()
+
 
     def getLoggingModuleCategoriesSelectOptions(self):
         categories = self.sql_sync.getLoggingModuleCategories()
@@ -225,7 +288,7 @@ class LoggingInterface:
             @discord.ui.button(label="Confirm", style=ButtonStyle.green, row=4)
             async def confirm_callback(self, button: Button, interaction: Interaction):
                 if self.select_value is not None:
-                    await interaction.response.send_message(f"You selected {str(self.select_value)}")
+                    await self.parent.callback_log_module_picked(self.select_value, interaction)
                 else:
                     await interaction.response.defer()
 

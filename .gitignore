@@ -2,3 +2,5 @@
 /logs/*
 /config/config.yaml
 /cache/*
+/storage/*
+/indexes/*
