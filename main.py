@@ -132,9 +132,18 @@ async def getFixInterfaceView():
                             custom_id='fix-log-interface-button')
 
     async def button_callback(interaction: discord.Interaction):
-        await interaction.response.defer()
+        button.disabled = True
+        button.label = "Loading..."
+        button.style = discord.ButtonStyle.secondary
+        await interaction.response.edit_message(view=view)
+        client.interface_sql_sync.firstTimeSetups()
         interfaceMessageHandler = MessageHandler("storage/interface_messages.json")
         client.loop.create_task(handle_setting_up_old_interfaces(interfaceMessageHandler), name="interface-setup")
+        button.disabled = False
+        button.label = "Fix log interface"
+        button.style = discord.ButtonStyle.blurple
+        await interaction.message.edit(view=view)
+
 
     button.callback = button_callback
     view.add_item(button)
@@ -157,9 +166,11 @@ async def create_log_interface(ctx : ApplicationContext):
 @client.slash_command()
 async def create_fix_interface(ctx: ApplicationContext):
     view = await getFixInterfaceView()
+    await ctx.defer()
+    await ctx.delete()
     fixInterfaceMessageHandler = MessageHandler("storage/fix_interface_message_handler.json")
     messages = fixInterfaceMessageHandler.getMessages()
-    message = await ctx.send("If the above menu is not functioning, click the button below", view=view)
+    message = await ctx.send("If the above menu is not functioning, click the button below\n\nPlease wait until it finishes loading before clicking any of the buttons", view=view)
     messages[str(message.id)] = True
     fixInterfaceMessageHandler.saveMessages(messages)
     client.add_view(view=view, message_id=message.id)
@@ -169,7 +180,7 @@ async def temp_create_fix_interface(ctx):
     view = await getFixInterfaceView()
     fixInterfaceMessageHandler = MessageHandler("storage/fix_interface_message_handler.json")
     messages = fixInterfaceMessageHandler.getMessages()
-    message = await ctx.send("If the above menu is not functioning, click the button below", view=view)
+    message = await ctx.send("If the above menu is not functioning, click the button below\n\nPlease wait until it finishes loading before clicking any of the buttons", view=view)
     messages[str(message.id)] = True
     fixInterfaceMessageHandler.saveMessages(messages)
     client.add_view(view=view, message_id=message.id)

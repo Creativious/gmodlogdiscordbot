@@ -47,9 +47,6 @@ class LoggingInterface:
         self.modals = {}
         self.interface_message_handler = MessageHandler("storage/interface_messages.json")
 
-    def __del__(self):
-        self.sql.close()
-
 
     def create(self):
         self.view.clear_items()
@@ -167,7 +164,7 @@ class LoggingInterface:
         sorted_logs = [all_the_logs[str(log_key)] for log_key in all_the_logs]
         def sort_key(e):
             return e['timestamp']
-        sorted_logs.sort(key=sort_key)
+        sorted_logs.sort(key=sort_key, reverse=True)
         log_count = len(sorted_logs)
         embed = self.default_embed.copy()
         embed.title = f"bLogs Log Search | Category: {category_name} | Module: {module_name}"
@@ -526,6 +523,7 @@ class InterfaceSQLSync:
         print("Interface SQL Sync Startup time: " + str(round(end_time - start_time)))
 
     def firstTimeSetups(self):
+        self.sql.reconnect(10)
         self.__firstTimeGetLoggingModuleCategories()
         self.__firstTimeGetLoggingModules()
         self.__firstTimePlayers()
