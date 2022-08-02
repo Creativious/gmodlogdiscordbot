@@ -95,10 +95,6 @@ async def periodic_update():
     while True:
         client.logger.info(msg="Running update cycle")
         client.interface_sql_sync.firstTimeSetups()
-        interfaceMessageHandler = MessageHandler("storage/interface_messages.json")
-        tasks = []
-        tasks.append(asyncio.create_task(handle_setting_up_old_interfaces(interfaceMessageHandler)))
-        await wait(tasks)
         await asyncio.sleep(int(client.config['bot']['update delay']))
 
 @client.event
@@ -114,6 +110,12 @@ async def on_ready():
         asyncio.ensure_future(periodic_update())
     except KeyboardInterrupt:
         pass
+
+    interfaceMessageHandler = MessageHandler("storage/interface_messages.json")
+    # tasks = []
+    # tasks.append(asyncio.create_task(handle_setting_up_old_interfaces(interfaceMessageHandler)))
+    client.loop.create_task(handle_setting_up_old_interfaces(interfaceMessageHandler), name="interface-setup")
+    # await wait(tasks)
 
 
 @client.slash_command()

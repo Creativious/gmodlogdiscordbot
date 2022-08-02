@@ -20,7 +20,7 @@ import mysql.connector
 
 class CustomView(View):
     def __init__(self, client, *items: Item):
-        super().__init__(*items, timeout=1)
+        super().__init__(*items, timeout=None)
 
     async def on_timeout(self):
         print("Timed out")
