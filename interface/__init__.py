@@ -18,15 +18,23 @@ from caching import Cache, CacheType, CacheSystem
 
 import mysql.connector
 
+class CustomView(View):
+    def __init__(self, client, *items: Item):
+        super().__init__(*items, timeout=1)
+
+    async def on_timeout(self):
+        print("Timed out")
+
 
 class LoggingInterface:
-    def __init__(self, config, sql_sync, caching_system):
+    def __init__(self, config, sql_sync, caching_system, client):
         # @TODO: Add Interface persistence
         self.config = config
         self.interface_id = 0
         self.caching_system = caching_system
         self.sql_sync: InterfaceSQLSync = sql_sync
-        self.view = View()
+        self.view = CustomView(client=client)
+
         self.buttons = {}
         self.default_embed = discord.Embed(colour=discord.Colour.blurple(), title="Vapor Networks DarkRP Log Interface",
                                            description="""
@@ -38,7 +46,6 @@ class LoggingInterface:
         self.total_pages = 0
         self.modals = {}
         self.interface_message_handler = MessageHandler("storage/interface_messages.json")
-
 
     def __del__(self):
         self.sql.close()

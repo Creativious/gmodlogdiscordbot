@@ -1,5 +1,6 @@
 bot:
   token: TOKENHERE # Bot token
+  update delay: 3600
   logging:
     filename: logs/log.log # location and file name of the logs from the discord bot.
     debug: False # Whether you want debugging on (True/False).

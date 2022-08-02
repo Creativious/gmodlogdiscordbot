@@ -77,17 +77,29 @@ async def handle_setting_up_old_interfaces(interfaceMessageHandler : MessageHand
         try:
             message = await client.get_channel(
                 int(interfaceMessageHandler.getMessages()['interfaces'][str(messageID)])).fetch_message(int(messageID))
-            await message.edit(view=LoggingInterface(config=client.config, caching_system=client.caching_system, sql_sync=client.interface_sql_sync).create_from_message(message),
+            view = LoggingInterface(config=client.config, caching_system=client.caching_system, sql_sync=client.interface_sql_sync, client=client).create_from_message(message)
+            await message.edit(view=view,
                                embed=discord.Embed(colour=discord.Colour.blurple(),
                                                    title="Vapor Networks DarkRP Log Interface",
                                                    description="""
                         Please use the buttons down below to navigate the interface
                         """))
         except(Exception) as e:
+
             messages = interfaceMessageHandler.getMessages()
             messages['interfaces'].pop(str(messageID))
             interfaceMessageHandler.saveMessages(messages)
-            client.logger.debug("Message has been deleted for view")
+            client.logger.debug("Interface seems to of been deleted, removing from interface message lists")
+
+async def periodic_update():
+    while True:
+        client.logger.info(msg="Running update cycle")
+        client.interface_sql_sync.firstTimeSetups()
+        interfaceMessageHandler = MessageHandler("storage/interface_messages.json")
+        tasks = []
+        tasks.append(asyncio.create_task(handle_setting_up_old_interfaces(interfaceMessageHandler)))
+        await wait(tasks)
+        await asyncio.sleep(int(client.config['bot']['update delay']))
 
 @client.event
 async def on_ready():
@@ -97,13 +109,11 @@ async def on_ready():
     client.remove_command("help")
     await client.change_presence(activity=activity, status=discord.Status.online)
 
-
     # Tasks
-
-    interfaceMessageHandler = MessageHandler("storage/interface_messages.json")
-    tasks = []
-    tasks.append(asyncio.create_task(handle_setting_up_old_interfaces(interfaceMessageHandler)))
-    await wait(tasks)
+    try:
+        asyncio.ensure_future(periodic_update())
+    except KeyboardInterrupt:
+        pass
 
 
 @client.slash_command()
@@ -122,7 +132,7 @@ async def create_log_interface(ctx : ApplicationContext):
     view : View = View()
     view.add_item(Button(label="Loading interface...", style=discord.ButtonStyle.secondary, disabled=True))
     message = await ctx.send(view=view)
-    await message.edit(content=None, view=LoggingInterface(config=client.config, caching_system=client.caching_system, sql_sync=client.interface_sql_sync).create_from_message(message), embed=discord.Embed(colour=discord.Colour.blurple(), title="Vapor Networks DarkRP Log Interface",
+    await message.edit(content=None, view=LoggingInterface(config=client.config, caching_system=client.caching_system, sql_sync=client.interface_sql_sync, client=client).create_from_message(message), embed=discord.Embed(colour=discord.Colour.blurple(), title="Vapor Networks DarkRP Log Interface",
                                            description="""
                     Please use the buttons down below to navigate the interface
                     """))
@@ -133,7 +143,7 @@ async def temp_create_interface(ctx):
     view: View = View()
     view.add_item(Button(label="Loading interface...", style=discord.ButtonStyle.secondary, disabled=True))
     message = await ctx.send(view=view)
-    await message.edit(content=None, view=LoggingInterface(config=client.config, caching_system=client.caching_system, sql_sync=client.interface_sql_sync).create_from_message(message), embed=discord.Embed(colour=discord.Colour.blurple(), title="Vapor Networks DarkRP Log Interface",
+    await message.edit(content=None, view=LoggingInterface(config=client.config, caching_system=client.caching_system, sql_sync=client.interface_sql_sync, client=client).create_from_message(message), embed=discord.Embed(colour=discord.Colour.blurple(), title="Vapor Networks DarkRP Log Interface",
                                            description="""
                     Please use the buttons down below to navigate the interface
                     """))
