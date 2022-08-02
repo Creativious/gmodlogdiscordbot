@@ -37,7 +37,9 @@ class Cache:
         """Returns true if the delay is passed
         Returns false if the delay hasn't passed yet"""
         if self.type == CacheType.OneTime:
-            if int(self.cache_dict["creation_time"]) + self.delay < round(time.time()):
+            delay_plus_creation_time = self.cache_dict['creation_time']
+
+            if round(time.time()) > delay_plus_creation_time:
                 return True
             else:
                 return False
@@ -63,6 +65,9 @@ class Cache:
 
     def get_data(self):
         return self.cache_dict["entries"]
+
+    def set_data(self, data):
+        self.cache_dict['entries'] = data
 
     def new_entry(self, name: str, data):
         if self.type == CacheType.OneTime:
@@ -148,6 +153,7 @@ class CacheSystem:
     def deleteCache(self, name: str):
         self.caches.pop(str(name))
     def checkIfFirstTime(self, name: str):
+        # print(f"{str(name)}: {str(self.__cacheFirstTimes[str(name)])}")
         return self.__cacheFirstTimes[str(name)]
     def firstTimeComplete(self, name: str):
         self.__cacheFirstTimes[str(name)] = True

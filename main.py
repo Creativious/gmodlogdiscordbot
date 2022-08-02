@@ -4,10 +4,16 @@ from creativiousutilities.logging import Logger
 from creativiousutilities.config import YAMLConfig
 from discord.commands.context import ApplicationContext
 from creativiousutilities.discord.messages import MessageHandler
+from caching import CacheSystem
 from discord.ui import Button, View
 from discord.ext import commands
+import asyncio
+from asyncio import wait
 from interface import LoggingInterface
+from interface import InterfaceSQLSync
 import discord
+import mysql
+import mysql.connector
 
 # @TODO: Setup new config system
 import ui
@@ -38,6 +44,14 @@ class CoreBot(commands.Bot):
         self.config = YAMLConfig("config/default_config.yaml", "config/config.yaml").load()
         self.logger = Logger(name="Bot", debug=bool(self.config["bot"]["logging"]["debug"]), logfile=self.config["bot"]["logging"]["filename"]).getLogger()
         self.logger.info("Startup!")
+        self.interface_sql: mysql.connector.MySQLConnection = mysql.connector.connect(
+            host=self.config["mysql"]["host"],
+            user=self.config["mysql"]["user"],
+            database=self.config["mysql"]["database"],
+            password=self.config["mysql"]["password"]
+        )
+        self.caching_system = CacheSystem(int(self.config["cache"]["delay"]), self.config["cache"]["cache folder"])
+        self.interface_sql_sync = InterfaceSQLSync(self.interface_sql, self.config, self.caching_system)
 
 
     def shutdown(self):
@@ -53,38 +67,44 @@ intents.message_content = True
 
 client = CoreBot('$', intents=intents)
 
-@client.event
-async def on_ready():
-    client.logger.info(f"Logged into {str(client.user.name)} ({str(client.user.id)})")
-    discUtils.loadAllCogs(client, "cogs/")
-    interfaceMessageHandler = MessageHandler("storage/interface_messages.json")
-
-    interface_message_ids =[]
+async def handle_setting_up_old_interfaces(interfaceMessageHandler : MessageHandler):
+    interface_message_ids = []
     try:
         interface_message_ids = [messageID for messageID in interfaceMessageHandler.getMessages()["interfaces"]]
     except KeyError:
         client.logger.debug("Interfaces doesn't exist")
     for messageID in interface_message_ids:
         try:
-            message = await client.get_channel(int(interfaceMessageHandler.getMessages()['interfaces'][str(messageID)])).fetch_message(int(messageID))
-            await message.edit(view=LoggingInterface(config=client.config).create_from_message(message), embed=discord.Embed(colour=discord.Colour.blurple(), title="Vapor Networks DarkRP Log Interface",
-                                           description="""
-                    Please use the buttons down below to navigate the interface
-                    """))
+            message = await client.get_channel(
+                int(interfaceMessageHandler.getMessages()['interfaces'][str(messageID)])).fetch_message(int(messageID))
+            await message.edit(view=LoggingInterface(config=client.config, caching_system=client.caching_system, sql_sync=client.interface_sql_sync).create_from_message(message),
+                               embed=discord.Embed(colour=discord.Colour.blurple(),
+                                                   title="Vapor Networks DarkRP Log Interface",
+                                                   description="""
+                        Please use the buttons down below to navigate the interface
+                        """))
         except(Exception) as e:
             messages = interfaceMessageHandler.getMessages()
             messages['interfaces'].pop(str(messageID))
             interfaceMessageHandler.saveMessages(messages)
             client.logger.debug("Message has been deleted for view")
+
+@client.event
+async def on_ready():
+    client.logger.info(f"Logged into {str(client.user.name)} ({str(client.user.id)})")
+    discUtils.loadAllCogs(client, "cogs/")
     activity = discord.Game(name="Message me with /help to get started")
     client.remove_command("help")
     await client.change_presence(activity=activity, status=discord.Status.online)
 
-# @client.command(name="test")
-# async def test(ctx : commands.Context):
-#     """Test Command"""
-#     print("Test")
-#     await ctx.reply("Response")
+
+    # Tasks
+
+    interfaceMessageHandler = MessageHandler("storage/interface_messages.json")
+    tasks = []
+    tasks.append(asyncio.create_task(handle_setting_up_old_interfaces(interfaceMessageHandler)))
+    await wait(tasks)
+
 
 @client.slash_command()
 async def help(ctx : ApplicationContext):
@@ -102,7 +122,7 @@ async def create_log_interface(ctx : ApplicationContext):
     view : View = View()
     view.add_item(Button(label="Loading interface...", style=discord.ButtonStyle.secondary, disabled=True))
     message = await ctx.send(view=view)
-    await message.edit(content=None, view=LoggingInterface(config=client.config).create_from_message(message), embed=discord.Embed(colour=discord.Colour.blurple(), title="Vapor Networks DarkRP Log Interface",
+    await message.edit(content=None, view=LoggingInterface(config=client.config, caching_system=client.caching_system, sql_sync=client.interface_sql_sync).create_from_message(message), embed=discord.Embed(colour=discord.Colour.blurple(), title="Vapor Networks DarkRP Log Interface",
                                            description="""
                     Please use the buttons down below to navigate the interface
                     """))
@@ -113,7 +133,7 @@ async def temp_create_interface(ctx):
     view: View = View()
     view.add_item(Button(label="Loading interface...", style=discord.ButtonStyle.secondary, disabled=True))
     message = await ctx.send(view=view)
-    await message.edit(content=None, view=LoggingInterface(config=client.config).create_from_message(message), embed=discord.Embed(colour=discord.Colour.blurple(), title="Vapor Networks DarkRP Log Interface",
+    await message.edit(content=None, view=LoggingInterface(config=client.config, caching_system=client.caching_system, sql_sync=client.interface_sql_sync).create_from_message(message), embed=discord.Embed(colour=discord.Colour.blurple(), title="Vapor Networks DarkRP Log Interface",
                                            description="""
                     Please use the buttons down below to navigate the interface
                     """))

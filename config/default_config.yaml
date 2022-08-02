@@ -19,6 +19,8 @@ mysql:
     darkrp_player: table_name
     darkrp_levels: table_name
     player_information: table_name
+    sam_players: table_name
+    darkrp_serverplayer: table_name
 cache:
   delay: 21600 # 6 Hours in seconds, the delay until the cache is destroyed
   cache folder: cache/ # Where the cache is stored
