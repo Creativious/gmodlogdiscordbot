@@ -85,7 +85,7 @@ async def handle_setting_up_old_interfaces(interfaceMessageHandler : MessageHand
                         Please use the buttons down below to navigate the interface
                         """))
         except(Exception) as e:
-
+            print(e)
             messages = interfaceMessageHandler.getMessages()
             messages['interfaces'].pop(str(messageID))
             interfaceMessageHandler.saveMessages(messages)
@@ -95,6 +95,9 @@ async def periodic_update():
     while True:
         client.logger.info(msg="Running update cycle")
         client.interface_sql_sync.firstTimeSetups()
+        fixInterfaceMessageHandler = MessageHandler("storage/fix_interface_message_handler.json")
+        for message in fixInterfaceMessageHandler.getMessages():
+            client.add_view(view=await getFixInterfaceView(), message_id=int(message))
         await asyncio.sleep(int(client.config['bot']['update delay']))
 
 @client.event
@@ -105,17 +108,14 @@ async def on_ready():
     client.remove_command("help")
     await client.change_presence(activity=activity, status=discord.Status.online)
 
+    interfaceMessageHandler = MessageHandler("storage/interface_messages.json")
+    client.loop.create_task(handle_setting_up_old_interfaces(interfaceMessageHandler), name="interface-setup")
+
     # Tasks
     try:
         asyncio.ensure_future(periodic_update())
     except KeyboardInterrupt:
         pass
-
-    interfaceMessageHandler = MessageHandler("storage/interface_messages.json")
-    # tasks = []
-    # tasks.append(asyncio.create_task(handle_setting_up_old_interfaces(interfaceMessageHandler)))
-    client.loop.create_task(handle_setting_up_old_interfaces(interfaceMessageHandler), name="interface-setup")
-    # await wait(tasks)
 
 
 @client.slash_command()
@@ -126,6 +126,20 @@ async def help(ctx : ApplicationContext):
     message = await ctx.respond(embed=helpEmbed)
     await message.delete(delay=120)
 
+async def getFixInterfaceView():
+    view: View = View(timeout=None)
+    button: Button = Button(label="Fix log interface", style=discord.ButtonStyle.blurple,
+                            custom_id='fix-log-interface-button')
+
+    async def button_callback(interaction: discord.Interaction):
+        await interaction.response.defer()
+        interfaceMessageHandler = MessageHandler("storage/interface_messages.json")
+        client.loop.create_task(handle_setting_up_old_interfaces(interfaceMessageHandler), name="interface-setup")
+
+    button.callback = button_callback
+    view.add_item(button)
+    return view
+
 @client.slash_command()
 async def create_log_interface(ctx : ApplicationContext):
     client.logger.debug("Creating Log Interface")
@@ -134,10 +148,32 @@ async def create_log_interface(ctx : ApplicationContext):
     view : View = View()
     view.add_item(Button(label="Loading interface...", style=discord.ButtonStyle.secondary, disabled=True))
     message = await ctx.send(view=view)
-    await message.edit(content=None, view=LoggingInterface(config=client.config, caching_system=client.caching_system, sql_sync=client.interface_sql_sync, client=client).create_from_message(message), embed=discord.Embed(colour=discord.Colour.blurple(), title="Vapor Networks DarkRP Log Interface",
+    view = LoggingInterface(config=client.config, caching_system=client.caching_system, sql_sync=client.interface_sql_sync, client=client).create_from_message(message)
+    await message.edit(content=None, view=view, embed=discord.Embed(colour=discord.Colour.blurple(), title="Vapor Networks DarkRP Log Interface",
                                            description="""
                     Please use the buttons down below to navigate the interface
                     """))
+
+@client.slash_command()
+async def create_fix_interface(ctx: ApplicationContext):
+    view = await getFixInterfaceView()
+    fixInterfaceMessageHandler = MessageHandler("storage/fix_interface_message_handler.json")
+    messages = fixInterfaceMessageHandler.getMessages()
+    message = await ctx.send("If the above menu is not functioning, click the button below", view=view)
+    messages[str(message.id)] = True
+    fixInterfaceMessageHandler.saveMessages(messages)
+    client.add_view(view=view, message_id=message.id)
+
+@client.command()
+async def temp_create_fix_interface(ctx):
+    view = await getFixInterfaceView()
+    fixInterfaceMessageHandler = MessageHandler("storage/fix_interface_message_handler.json")
+    messages = fixInterfaceMessageHandler.getMessages()
+    message = await ctx.send("If the above menu is not functioning, click the button below", view=view)
+    messages[str(message.id)] = True
+    fixInterfaceMessageHandler.saveMessages(messages)
+    client.add_view(view=view, message_id=message.id)
+
 
 
 @client.command()
@@ -145,11 +181,13 @@ async def temp_create_interface(ctx):
     view: View = View()
     view.add_item(Button(label="Loading interface...", style=discord.ButtonStyle.secondary, disabled=True))
     message = await ctx.send(view=view)
-    await message.edit(content=None, view=LoggingInterface(config=client.config, caching_system=client.caching_system, sql_sync=client.interface_sql_sync, client=client).create_from_message(message), embed=discord.Embed(colour=discord.Colour.blurple(), title="Vapor Networks DarkRP Log Interface",
+    view = LoggingInterface(config=client.config, caching_system=client.caching_system,
+                            sql_sync=client.interface_sql_sync, client=client).create_from_message(message)
+    await message.edit(content=None, view=view,
+                       embed=discord.Embed(colour=discord.Colour.blurple(), title="Vapor Networks DarkRP Log Interface",
                                            description="""
-                    Please use the buttons down below to navigate the interface
-                    """))
-
+                        Please use the buttons down below to navigate the interface
+                        """))
 
 if client.config["bot"]["token"] != "TOKENHERE":
     client.run(client.config["bot"]["token"])

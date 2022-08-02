@@ -53,8 +53,8 @@ class LoggingInterface:
 
     def create(self):
         self.view.clear_items()
-        self.createButton("homeButton", row=1, button=HomeButton(), callback=self.callback_home_button)
-        self.createButton("logsButton", Button(style=ButtonStyle.primary, label="Logs"), row=1, callback=self.callback_logs_button)
+        self.createButton("homeButton", row=1, button=Button(style=discord.ButtonStyle.primary, emoji="🏠", label="Home", custom_id='home-button'), callback=self.callback_home_button)
+        self.createButton("logsButton", Button(style=ButtonStyle.primary, label="Logs", custom_id='logs-button'), row=1, callback=self.callback_logs_button)
         return self.view
 
     def create_from_message(self, message : discord.Message):
