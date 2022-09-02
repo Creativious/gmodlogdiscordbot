@@ -5,6 +5,7 @@ from creativiousutilities.config import YAMLConfig
 from discord.commands.context import ApplicationContext
 from creativiousutilities.discord.messages import MessageHandler
 from caching import CacheSystem
+from indexing import IndexSystem
 from discord.ui import Button, View
 from discord.ext import commands
 import asyncio
@@ -20,6 +21,9 @@ import ui
 
 """
 Documentation: https://docs.pycord.dev/en/master/
+
+Storage Alternatives: https://stackoverflow.com/questions/37928794/which-is-faster-for-load-pickle-or-hdf5-in-python
+Options that I am open for Pickle(https://docs.python.org/3/library/pickle.html) and HDF5(http://www.pytables.org/)
 """
 
 if not os.path.isdir("logs/"):
@@ -51,7 +55,8 @@ class CoreBot(commands.Bot):
             password=self.config["mysql"]["password"]
         )
         self.caching_system = CacheSystem(int(self.config["cache"]["delay"]), self.config["cache"]["cache folder"])
-        self.interface_sql_sync = InterfaceSQLSync(self.interface_sql, self.config, self.caching_system)
+        self.indexing_system = IndexSystem(self.config['index']['index folder'])
+        self.interface_sql_sync = InterfaceSQLSync(self.interface_sql, self.config, self.caching_system, self.indexing_system)
 
 
     def shutdown(self):
@@ -162,28 +167,38 @@ async def create_log_interface(ctx : ApplicationContext):
                                            description="""
                     Please use the buttons down below to navigate the interface
                     """))
-
-@client.slash_command()
-async def create_fix_interface(ctx: ApplicationContext):
     view = await getFixInterfaceView()
-    await ctx.defer()
-    await ctx.delete()
     fixInterfaceMessageHandler = MessageHandler("storage/fix_interface_message_handler.json")
     messages = fixInterfaceMessageHandler.getMessages()
-    message = await ctx.send("If the above menu is not functioning, click the button below\n\nPlease wait until it finishes loading before clicking any of the buttons", view=view)
+    message = await ctx.send(
+        "If the above menu is not functioning, click the button below\n\nPlease wait until it finishes loading before clicking any of the buttons",
+        view=view)
     messages[str(message.id)] = True
     fixInterfaceMessageHandler.saveMessages(messages)
     client.add_view(view=view, message_id=message.id)
 
-@client.command()
-async def temp_create_fix_interface(ctx):
-    view = await getFixInterfaceView()
-    fixInterfaceMessageHandler = MessageHandler("storage/fix_interface_message_handler.json")
-    messages = fixInterfaceMessageHandler.getMessages()
-    message = await ctx.send("If the above menu is not functioning, click the button below\n\nPlease wait until it finishes loading before clicking any of the buttons", view=view)
-    messages[str(message.id)] = True
-    fixInterfaceMessageHandler.saveMessages(messages)
-    client.add_view(view=view, message_id=message.id)
+# # DEPRECIATED, REPLACED FOR SOMETHING ELSE
+# @client.slash_command()
+# async def create_fix_interface(ctx: ApplicationContext):
+#     view = await getFixInterfaceView()
+#     await ctx.defer()
+#     await ctx.delete()
+#     fixInterfaceMessageHandler = MessageHandler("storage/fix_interface_message_handler.json")
+#     messages = fixInterfaceMessageHandler.getMessages()
+#     message = await ctx.send("If the above menu is not functioning, click the button below\n\nPlease wait until it finishes loading before clicking any of the buttons", view=view)
+#     messages[str(message.id)] = True
+#     fixInterfaceMessageHandler.saveMessages(messages)
+#     client.add_view(view=view, message_id=message.id)
+#
+# @client.command()
+# async def temp_create_fix_interface(ctx):
+#     view = await getFixInterfaceView()
+#     fixInterfaceMessageHandler = MessageHandler("storage/fix_interface_message_handler.json")
+#     messages = fixInterfaceMessageHandler.getMessages()
+#     message = await ctx.send("If the above menu is not functioning, click the button below\n\nPlease wait until it finishes loading before clicking any of the buttons", view=view)
+#     messages[str(message.id)] = True
+#     fixInterfaceMessageHandler.saveMessages(messages)
+#     client.add_view(view=view, message_id=message.id)
 
 
 
@@ -199,6 +214,15 @@ async def temp_create_interface(ctx):
                                            description="""
                         Please use the buttons down below to navigate the interface
                         """))
+    view = await getFixInterfaceView()
+    fixInterfaceMessageHandler = MessageHandler("storage/fix_interface_message_handler.json")
+    messages = fixInterfaceMessageHandler.getMessages()
+    message = await ctx.send(
+        "If the above menu is not functioning, click the button below\n\nPlease wait until it finishes loading before clicking any of the buttons",
+        view=view)
+    messages[str(message.id)] = True
+    fixInterfaceMessageHandler.saveMessages(messages)
+    client.add_view(view=view, message_id=message.id)
 
 if client.config["bot"]["token"] != "TOKENHERE":
     client.run(client.config["bot"]["token"])

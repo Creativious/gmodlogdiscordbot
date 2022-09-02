@@ -15,6 +15,7 @@ import steamid_converter.Converter as SteamIDConverter
 from asyncio import wait_for, gather, wait
 import json
 from caching import Cache, CacheType, CacheSystem
+from indexing import IndexSystem, Index
 
 import mysql.connector
 
@@ -513,10 +514,11 @@ class LoggingInterface:
         await interaction.message.edit(view=self.view)
 
 class InterfaceSQLSync:
-    def __init__(self, sql: mysql.connector.MySQLConnection, config: dict, caching_system: CacheSystem):
+    def __init__(self, sql: mysql.connector.MySQLConnection, config: dict, caching_system: CacheSystem, indexing_system: IndexSystem):
         self.config = config
         self.sql = sql
         self.caching_system = caching_system
+        self.indexing_system = indexing_system
         start_time = time.time()
         self.firstTimeSetups()
         end_time = time.time()
@@ -686,6 +688,8 @@ class InterfaceSQLSync:
 
             cache.cache_dict['entries'] = new_data
             self.caching_system.updateCache(cache_name, cache)
+            self.indexing_system.create_index(name="player-index", parameters=['backwards-compat-id', 'steamid64', 'sam-id', 'gas_id'])
+
 
     def __firstTimeGetLoggingClasses(self):
         cursor = self.sql.cursor()
@@ -708,7 +712,11 @@ class InterfaceSQLSync:
             with open("gmod/class_types.json", "r") as f:
                 class_types = json.loads(f.read())
             for entry in cursor_fetchall:
-                data = {"id": str(entry[0]), "class_type": str(class_types[str(entry[1])]), "class_name": str(entry[2])}
+                try:
+                    data = {"id": str(entry[0]), "class_type": str(class_types[str(entry[1])]), "class_name": str(entry[2])}
+                except KeyError:
+                    data = {"id": str(entry[0]), "class_type": "UNKNOWN",
+                            "class_name": str(entry[2])}
                 if int(entry[0]) > id:
                     id = int(entry[0])
                 cache.new_entry(str(entry[0]), data)

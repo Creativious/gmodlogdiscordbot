@@ -25,3 +25,5 @@ mysql:
 cache:
   delay: 21600 # 6 Hours in seconds, the delay until the cache is destroyed
   cache folder: cache/ # Where the cache is stored
+index:
+  index folder: indexes/
