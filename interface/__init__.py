@@ -520,6 +520,8 @@ class InterfaceSQLSync:
         self.caching_system = caching_system
         self.indexing_system = indexing_system
         start_time = time.time()
+        self.indexing_system.create_index(name="player-index",
+                                          parameters=['backwards-compat-id', 'steamid64', 'sam-id', 'gas_id'], primary_index="steamid64")
         self.firstTimeSetups()
         end_time = time.time()
         print("Interface SQL Sync Startup time: " + str(round(end_time - start_time)))
@@ -688,7 +690,7 @@ class InterfaceSQLSync:
 
             cache.cache_dict['entries'] = new_data
             self.caching_system.updateCache(cache_name, cache)
-            self.indexing_system.create_index(name="player-index", parameters=['backwards-compat-id', 'steamid64', 'sam-id', 'gas_id'])
+
 
 
     def __firstTimeGetLoggingClasses(self):
